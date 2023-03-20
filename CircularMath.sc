@@ -42,4 +42,20 @@
 			^b.neg;
 		});
 	}
+
+	circCeilToNearest { |coll, rmin, rmax|
+		^coll[coll.collect({ |item| circSub(item, this, rmin, rmax) }).minIndex];
+	}
+
+	circFloorToNearest { |coll, rmin, rmax|
+		^coll[coll.collect({ |item| circSub(this, item, rmin, rmax) }).minIndex];
+	}
+
+	circClosest { |coll, rmin, rmax|
+		^coll[ circClosestIndex(this, coll, rmin, rmax) ];
+	}
+
+	circClosestIndex { |coll, rmin, rmax|
+		^coll.collect({ |item| minCircDist(this, item, rmin, rmax) }).abs.minIndex;
+	}
 }
