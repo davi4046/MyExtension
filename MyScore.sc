@@ -71,14 +71,15 @@ MyScore {
 		});
 	}
 
-
-
 	getNotesStartingInRange { |voice, fromBeat, toBeat|
 		var indexes = List.new;
 		data[voice].size.do({ |index|
-			var beat = if(index > 0, this.dursum(voice, 0, index - 1), 0);
-			if((beat >= fromBeat) && (beat < toBeat), {
-				indexes.add(index);
+			var midinote = data[voice][index][\midinote];
+			if((midinote > 0) && (midinote < 127), {
+				var beat = if(index > 0, this.dursum(voice, 0, index - 1), 0);
+				if((beat >= fromBeat) && (beat < toBeat), {
+					indexes.add(index);
+				});
 			});
 		});
 		^indexes;
@@ -132,6 +133,47 @@ MyScore {
 				});
 			});
 		});
+	}
+
+	combineRepeats {
+		var newData = data.size.collect({ List.new });
+		data.size.do({ |voiceIdx|
+			var prevNote;
+			data[voiceIdx].size.do({ |noteIdx|
+				var note = data[voiceIdx][noteIdx];
+				var isRepeat = false;
+
+				if(prevNote != nil, {
+					if(note[\midinote] == prevNote[\midinote], {
+						isRepeat = true;
+					});
+				});
+
+				if(isRepeat.not, {
+					var bool = true;
+					var iter = 0;
+
+					while({bool}, {
+						iter = iter + 1;
+
+						if(noteIdx + iter <= data[voiceIdx].lastIndex, {
+							var followNote = data[voiceIdx][noteIdx + iter];
+
+							if(followNote[\midinote] == note[\midinote], {
+								note[\dur] = note[\dur] + followNote[\dur];
+							}, {
+								bool = false;
+							});
+						}, {
+							bool = false;
+						});
+					});
+					newData[voiceIdx].add(note);
+					prevNote = note;
+				});
+			});
+		});
+		data = newData;
 	}
 
 	exportAsMidi { |filePath, seperateVoices = false|
