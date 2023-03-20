@@ -24,10 +24,6 @@ MyScore {
 		^data[voice].copyRange(firstIdx, lastIdx).collect({ |note| note[\dur] }).sum;
 	}
 
-	printVoice { |voice|
-		data[voice].postln;
-	}
-
 	voiceLength { |voice|
 		^this.dursum(voice, 0, data[voice].size - 1);
 	}
@@ -187,11 +183,12 @@ MyScore {
 			var currBeat = 0;
 			voice.do({ |note|
 				var voiceIndex = data.indexOf(voice);
+				var dur = note[\dur] * 2;
 				if(((0 <= note[\midinote]) && (note[\midinote] <= 127)), {
 					var channel = if(seperateVoices, voiceIndex, 0);
-					mf.addNote(note[\midinote], 64, currBeat, note[\dur], 0, channel)}
+					mf.addNote(note[\midinote], 64, currBeat, dur, 0, channel)}
 				);
-				currBeat = currBeat + note[\dur];
+				currBeat = currBeat + dur;
 			});
 		});
 
