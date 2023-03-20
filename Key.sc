@@ -28,6 +28,29 @@ Key {
 			[romanNumeral, chord];
 		}).flatten.asDict;
 	}
+
+	getMidinotesBetween { |a, b|
+		var result = List.new;
+		var min = min(a, b);
+		var max = max(a, b);
+		var closest = circClosest(min, degrees, 0, 12);
+		var midi = closest + (12 * floor(min / 12));
+		var index = degrees.indexOf(closest % 12);
+
+		while({ midi < max }, {
+			midi = midi + circSub(degrees[index + 1 % 7], degrees[index % 7], 0, 12);
+			result.add(midi);
+			index = index + 1 % 7;
+		});
+
+		result.remove(result.maxItem);
+
+		if(a < b, {
+			^result;
+		}, {
+			^result.reverse;
+		});
+	}
 }
 
 + Key {
