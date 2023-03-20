@@ -172,6 +172,22 @@ MyScore {
 		data = newData;
 	}
 
+	muteRepeats {
+		data.size.do({ |voiceIdx|
+			var prevNote;
+			data[voiceIdx].size.do({ |noteIdx|
+				var note = data[voiceIdx][noteIdx];
+
+				if(prevNote != nil, {
+					if(note[\midinote] == prevNote[\midinote], {
+						data[voiceIdx][noteIdx][\midinote] = -1;
+					}, {prevNote = note});
+				}, {prevNote = note});
+
+			});
+		});
+	}
+
 	exportAsMidi { |filePath, seperateVoices = false|
 		var mf;
 
