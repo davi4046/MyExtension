@@ -1,5 +1,5 @@
 GenerativeExpression {
-	var func, lastArgs, lastBeat;
+	var <func, <lastArgs, <lastBeat;
 
 	*new { |expr|
 		^super.new.init(expr);
@@ -29,11 +29,10 @@ GenerativeExpression {
 		add = if(add != nil, add, lastArgs[\add]);
 
 		calcMidi = { |x|
-			var y, degree, freq, midi;
+			var y, degree, midi;
 			y = func.(x);
 			degree = (y.round * mul + add).round;
-			freq = key.degreeToFreq(degree);
-			midi = freq.cpsmidi.round.asInteger;
+			midi = key.degreeToMidi(degree);
 		};
 
 		calcDur = { |x|
@@ -77,10 +76,6 @@ GenerativeExpression {
 		lastBeat = startBeat + length;
 
 		^notes;
-	}
-
-	lastBeat {
-		^lastBeat;
 	}
 }
 
