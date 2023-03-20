@@ -104,8 +104,7 @@ MyScore {
 					indexes[voiceIdx].collect({ |noteIdx|
 						var note = data[voiceIdx][noteIdx];
 						var distances = chords[key].collect({ |n| minCircDist(note[\midinote], n, 0, 12) });
-						var minIndex = distances.abs.minIndex;
-						distances[minIndex];
+						distances.abs.minItem;
 					});
 				})];
 			}).asArray.flatten.asDict;
@@ -172,18 +171,45 @@ MyScore {
 		data = newData;
 	}
 
-	muteRepeats {
+	makeRepeatsPauses { |maxInRow = inf|
 		data.size.do({ |voiceIdx|
 			var prevNote;
+			var inRow = 0;
 			data[voiceIdx].size.do({ |noteIdx|
 				var note = data[voiceIdx][noteIdx];
+				var isRepeat = false;
 
 				if(prevNote != nil, {
 					if(note[\midinote] == prevNote[\midinote], {
-						data[voiceIdx][noteIdx][\midinote] = -1;
-					}, {prevNote = note});
-				}, {prevNote = note});
+						isRepeat = true;
+					});
+				});
 
+				if(isRepeat, {
+					if(inRow < maxInRow, {
+						data[voiceIdx][noteIdx][\midinote] = -1;
+						inRow = inRow + 1;
+					}, {
+						inRow = 0;
+					});
+				}, {
+					prevNote = note;
+					inRow = 0;
+				});
+
+			});
+		});
+	}
+
+	addPassingNotes { |voice, key, durs, maxInRow = 1|
+		data[voice].size.do({ |i|
+			var note = data[voice][i];
+			var nextNote = data[voice][i + 1];
+			var min = min(note[\midinote], nextNote[\midinote]);
+			var max = max(note[\midinote], nextNote[\midinote]);
+			var degreesInBetween = key.degrees.select({ |degree|
+				circSub(min, degree, 0, 12).isPositive &&
+				circSub(max, degree, 0, 12).isNegative
 			});
 		});
 	}
