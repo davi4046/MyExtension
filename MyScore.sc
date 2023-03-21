@@ -65,6 +65,18 @@ MyScore {
 		});
 	}
 
+	getIndexAtBeat { |voice, beat|
+		var noteBeat = 0;
+		data[voice].size.do({ |noteIdx|
+			var note = data[voice][noteIdx];
+			if((noteBeat <= beat) && (noteBeat + note[\dur] >= beat), {
+				^noteIdx;
+			});
+			noteBeat = noteBeat + note[\dur];
+		});
+		^nil;
+	}
+
 	getNotesStartingInRange { |voice, fromBeat, toBeat|
 		var indexes = List.new;
 		data[voice].size.do({ |index|
