@@ -114,7 +114,8 @@ MyScore {
 					indexes[voiceIdx].collect({ |noteIdx|
 						var note = data[voiceIdx][noteIdx];
 						var distances = chords[key].collect({ |n| minCircDist(note[\midinote], n, 0, 12) });
-						distances.abs.minItem;
+						var minIndex = distances.abs.minIndex;
+						distances[minIndex];
 					});
 				})];
 			}).asArray.flatten.asDict;
