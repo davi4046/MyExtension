@@ -29,17 +29,18 @@ Key {
 		}).flatten.asDict;
 	}
 
-	getMidinotesBetween { |a, b|
+	getPitchesBetween { |a, b|
 		var result = List.new;
 		var min = min(a, b);
 		var max = max(a, b);
 		var closest = circClosest(min, degrees, 0, 12);
-		var midi = closest + (12 * floor(min / 12));
-		var index = degrees.indexOf(closest % 12);
+		var octave = floor(min - closest / 12);
+		var pitch = closest + (12 * octave);
+		var index = degrees.indexOf(closest);
 
-		while({ midi < max }, {
-			midi = midi + circSub(degrees[index + 1 % 7], degrees[index % 7], 0, 12);
-			result.add(midi);
+		while({ pitch < max }, {
+			pitch = pitch + circSub(degrees[index + 1 % 7], degrees[index % 7], 0, 12);
+			result.add(pitch);
 			index = index + 1 % 7;
 		});
 
