@@ -34,14 +34,14 @@ MyScore {
 
 	insert { |voice, beat, notes|
 		if((voice < data.size), {
-			inf.do({ |i|
-				var currBeat;
+			var currBeat = 0;
 
+			inf.do({ |i|
 				i = i.asInteger;
 
-				currBeat = this.dursum(voice, 0, i);
+				currBeat = if(i < data[voice].size, { currBeat + data[voice][i][\dur] }, currBeat);
 
-				if((currBeat >= beat) || (i > data[voice].size), {
+				if((currBeat >= beat) || (i >= data[voice].size), {
 					var split1Dur, split2Dur, splitMidi;
 
 					split1Dur = beat - this.dursum(voice, 0, i - 1);
@@ -62,8 +62,6 @@ MyScore {
 					^this;
 				});
 			});
-		}, {
-			("Warning: There's no voice at index" + voice).postln;
 		});
 	}
 
