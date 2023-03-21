@@ -216,11 +216,27 @@ MyScore {
 		data[voice].size.do({ |i|
 			var note = data[voice][i];
 			var nextNote = data[voice][i + 1];
-			var min = min(note[\midinote], nextNote[\midinote]);
-			var max = max(note[\midinote], nextNote[\midinote]);
-			var degreesInBetween = key.degrees.select({ |degree|
-				circSub(min, degree, 0, 12).isPositive &&
-				circSub(max, degree, 0, 12).isNegative
+			var pitchesBetween = key.getPitchesBetween(note[\midinote], nextNote[\midinote]);
+			if((pitchesBetween.size > 0) && (pitchesBetween.size <= maxInRow), {
+				var hasAdded = false;
+				var iter = 0;
+				durs = durs.sort.reverse;
+
+				while({ hasAdded.not && (iter < durs.size) }, {
+					var dur = durs[iter];
+					var remainDur = note[\dur] - (pitchesBetween.size * dur);
+
+					if(remainDur > 0, {
+
+						var passingNotes = pitchesBetween.collect({ |pitch| (midinote: pitch, dur: dur) });
+						data[voice][i][\dur] = remainDur;
+						data[voice] = data[voice].insert(i + 1, passingNotes).flatten;
+
+						hasAdded = true;
+					});
+
+					iter = iter + 1;
+				});
 			});
 		});
 	}
