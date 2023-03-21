@@ -141,17 +141,23 @@ MyScore {
 		});
 	}
 
-	combineRepeats {
+	combineRepeats { |acrossBars = true|
 		var newData = data.size.collect({ List.new });
 		data.size.do({ |voiceIdx|
 			var prevNote;
 			data[voiceIdx].size.do({ |noteIdx|
-				var note = data[voiceIdx][noteIdx];
+				var note = data[voiceIdx][noteIdx].copy;
+				var noteBar = this.getBarAt(voiceIdx, noteIdx);
+
 				var isRepeat = false;
 
 				if(prevNote != nil, {
 					if(note[\midinote] == prevNote[\midinote], {
-						isRepeat = true;
+						var prevNoteBar = this.getBarAt(voiceIdx, noteIdx - 1);
+
+						if((noteBar == prevNoteBar) || (acrossBars == true), {
+							isRepeat = true;
+						});
 					});
 				});
 
@@ -166,7 +172,13 @@ MyScore {
 							var followNote = data[voiceIdx][noteIdx + iter];
 
 							if(followNote[\midinote] == note[\midinote], {
-								note[\dur] = note[\dur] + followNote[\dur];
+								var followNoteBar = this.getBarAt(voiceIdx, noteIdx + iter);
+
+								if((noteBar == followNoteBar) || (acrossBars == true), {
+									note[\dur] = note[\dur] + followNote[\dur];
+								}, {
+									bool = false;
+								});
 							}, {
 								bool = false;
 							});
@@ -180,6 +192,10 @@ MyScore {
 			});
 		});
 		data = newData;
+	}
+
+	getBarAt { |voiceIdx, noteIdx|
+		^floor(this.dursum(voiceIdx, 0, noteIdx - 1)).asInteger;
 	}
 
 	makeRepeatsPauses { |maxInRow = inf|
@@ -212,14 +228,17 @@ MyScore {
 		});
 	}
 
-	addPassingNotes { |voice, key, durs, maxInRow = 1|
+	addPassingNotes { |voice, key, durs, maxInRow = 1, offBeatOnly = true|
 		data[voice].size.do({ |i|
 			var note = data[voice][i];
 			var nextNote = data[voice][i + 1];
 			var pitchesBetween = key.getPitchesBetween(note[\midinote], nextNote[\midinote]);
+
 			if((pitchesBetween.size > 0) && (pitchesBetween.size <= maxInRow), {
+				var noteBeat = if(offBeatOnly, { this.dursum(voice, 0, i - 1) }, 0 /*placeholder value*/ );
 				var hasAdded = false;
 				var iter = 0;
+
 				durs = durs.sort.reverse;
 
 				while({ hasAdded.not && (iter < durs.size) }, {
@@ -227,14 +246,57 @@ MyScore {
 					var remainDur = note[\dur] - (pitchesBetween.size * dur);
 
 					if(remainDur > 0, {
+						var beats = pitchesBetween.size.collect({ |n| noteBeat + remainDur + (n * dur) });
+						var isOffBeatOnly = beats.mod(0.25).includes(0.0).not;
 
-						var passingNotes = pitchesBetween.collect({ |pitch| (midinote: pitch, dur: dur) });
-						data[voice][i][\dur] = remainDur;
-						data[voice] = data[voice].insert(i + 1, passingNotes).flatten;
+						if(isOffBeatOnly || offBeatOnly.not, {
+							var passingNotes = pitchesBetween.collect({ |pitch| (midinote: pitch, dur: dur) });
 
-						hasAdded = true;
+							data[voice][i][\dur] = remainDur;
+							data[voice] = data[voice].insert(i + 1, passingNotes).flatten;
+
+							hasAdded = true;
+						});
 					});
+					iter = iter + 1;
+				});
+			});
+		});
+	}
 
+	addChromaticPassingNotes { |voice, durs, maxInRow = 1, offBeatOnly = true|
+		data[voice].size.do({ |i|
+			var note = data[voice][i];
+			var nextNote = data[voice][i + 1];
+			var min = min(note[\midinote], nextNote[\midinote]);
+			var max = max(note[\midinote], nextNote[\midinote]);
+			var steps = (max - min - 1).asInteger;
+
+			if((steps > 0) && (steps <= maxInRow), {
+				var noteBeat = if(offBeatOnly, { this.dursum(voice, 0, i - 1) }, 0 /*placeholder value*/ );
+				var hasAdded = false;
+				var iter = 0;
+
+				durs = durs.sort.reverse;
+
+				while({ hasAdded.not && (iter < durs.size) }, {
+					var dur = durs[iter];
+					var remainDur = note[\dur] - (steps * dur);
+
+					if(remainDur > 0, {
+						var beats = steps.collect({ |n| noteBeat + remainDur + (n * dur) });
+						var isOffBeatOnly = beats.mod(0.25).includes(0.0).not;
+
+						if( isOffBeatOnly || offBeatOnly.not, {
+							var passingNotes = steps.collect({ |n| (midinote: min + n + 1, dur: dur) });
+							if(note[\midinote] > nextNote[\midinote], { passingNotes = passingNotes.reverse });
+
+							data[voice][i][\dur] = remainDur;
+							data[voice] = data[voice].insert(i + 1, passingNotes).flatten;
+
+							hasAdded = true;
+						});
+					});
 					iter = iter + 1;
 				});
 			});
