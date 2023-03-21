@@ -17,7 +17,7 @@ Key {
 
 	degreeToMidi { |degree|
 		var octave = floor(degree / 7) + 4;
-		^degrees[degree % 7] + (12 * octave);
+		^(degrees[degree % 7] + (12 * octave)).asInteger;
 	}
 
 	getChords {
