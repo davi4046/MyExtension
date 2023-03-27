@@ -17,14 +17,13 @@ GenerativeExpression {
 		^slopeDeg;
 	}
 
-	generate { |x, startBeat, length, durs, key, mul, add|
+	generate { |x, startBeat, length, durs, mul, add|
 		var calcMidi, calcDur, stream, notes, currBeat;
 
 		x = if(x != nil, x, lastArgs[\x]);
 		startBeat = if(startBeat != nil, startBeat, lastArgs[\startBeat]);
 		length = if(length != nil, length, lastArgs[\length]);
 		durs = if(durs != nil, durs, lastArgs[\durs]);
-		key = if(key != nil, key, lastArgs[\key]);
 		mul = if(mul != nil, mul, lastArgs[\mul]);
 		add = if(add != nil, add, lastArgs[\add]);
 
@@ -32,7 +31,6 @@ GenerativeExpression {
 			var y, degree, midi;
 			y = func.(x);
 			degree = (y.round * mul + add).round;
-			midi = key.degreeToMidi(degree);
 		};
 
 		calcDur = { |x|
@@ -45,7 +43,7 @@ GenerativeExpression {
 
 		stream = Pbind(
 			\x, x,
-			\midinote, Pfunc({ |event| calcMidi.(event[\x])}),
+			\degree, Pfunc({ |event| calcMidi.(event[\x])}),
 			\dur, Pfunc({ |event| calcDur.(event[\x])}),
 		).asStream;
 
@@ -68,7 +66,6 @@ GenerativeExpression {
 			\startBeat -> startBeat,
 			\length -> length,
 			\durs -> durs,
-			\key -> key,
 			\mul -> mul,
 			\add -> add,
 		];
