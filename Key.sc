@@ -1,5 +1,5 @@
 Key {
-	var <degrees, <root, <mode, <name;
+	var <degrees;
 	classvar <all;
 
 	*new { |root, mode|
@@ -7,12 +7,7 @@ Key {
 	}
 
 	init { |aRoot, aMode|
-		var pitchClassDict = Dictionary.newFrom([C:0,Cs:1,Db:1,D:2,Ds:3,Eb:3,E:4,Es:5,Fb:4,F:5,Fs:6,Gb:6,G:7,Gs:8,Ab:8,A:9,As:10,Bb:10,B:11,Bs:0,Cb:11]);
-		var pitchClass = pitchClassDict[aRoot];
-		degrees = Scale.at(aMode).degrees.collect({ |degree| degree + pitchClass});
-		root = aRoot;
-		mode = aMode;
-		name = [aRoot, aMode].join(" ");
+		degrees = Scale.at(aMode).degrees.collect({ |degree| degree + (aRoot % 12)});
 	}
 
 	degreeToMidi { |degree|
@@ -20,13 +15,28 @@ Key {
 		^(degrees[degree % 7] + (12 * octave)).asInteger;
 	}
 
-	getChords {
-		^7.collect({ |i|
-			var chord, romanNumeral;
-			chord = [degrees[i], degrees[i + 2 % 7], degrees[i + 4 % 7]];
-			romanNumeral = i.toRomanNumeral.formatQuality(chord);
-			[romanNumeral, chord];
-		}).flatten.asDict;
+	midiToDegree { |midi|
+		^degrees.mod(12).indexOf(midi % 12);
+	}
+
+	getChord { |chordSymbol|
+		var nums, num, idx, ext, chord;
+
+		nums = [\I, \II, \III, \IV, \V, \VI, \VII];
+		num = chordSymbol.asString.findRegexpAt("[IV]+")[0];
+		idx = nums.indexOf(num.asSymbol);
+
+		ext = chordSymbol.asString.replace(num);
+
+		if(ext == "",   { ext = [1, 3, 5] });
+		if(ext == "7",  { ext = [1, 3, 5, 7] });
+		if(ext == "9",  { ext = [1, 3, 5, 7, 9] });
+		if(ext == "11", { ext = [1, 3, 5, 7, 9, 11] });
+		if(ext == "13", { ext = [1, 3, 5, 7, 9, 11, 13] });
+
+		^chord = ext.collect({ |n|
+			degrees[idx + n - 1 % 7]
+		});
 	}
 
 	getPitchesBetween { |a, b|
@@ -61,50 +71,50 @@ Key {
 		all = IdentityDictionary[
 
 			// major keys
-			\Ab -> Key.new(\Ab, \major),
-			\A -> Key.new(\A, \major),
-			\As -> Key.new(\As, \major),
-			\Bb -> Key.new(\Bb, \major),
-			\B -> Key.new(\B, \major),
-			\Bs -> Key.new(\Bs, \major),
-			\Cb -> Key.new(\Cb, \major),
-			\C -> Key.new(\C, \major),
-			\Cs -> Key.new(\Cs, \major),
-			\Db -> Key.new(\Db, \major),
-			\D -> Key.new(\D, \major),
-			\Ds -> Key.new(\Ds, \major),
-			\Eb -> Key.new(\Eb, \major),
-			\E -> Key.new(\E, \major),
-			\Es -> Key.new(\Es, \major),
-			\Fb -> Key.new(\Fb, \major),
-			\F -> Key.new(\F, \major),
-			\Fs -> Key.new(\Fs, \major),
-			\Gb -> Key.new(\Gb, \major),
-			\G -> Key.new(\G, \major),
-			\Gs -> Key.new(\Gs, \major),
+			\Ab -> Key.new(8, \major),
+			\A -> Key.new(9, \major),
+			\As -> Key.new(10, \major),
+			\Bb -> Key.new(10, \major),
+			\B -> Key.new(11, \major),
+			\Bs -> Key.new(0, \major),
+			\Cb -> Key.new(11, \major),
+			\C -> Key.new(0, \major),
+			\Cs -> Key.new(1, \major),
+			\Db -> Key.new(1, \major),
+			\D -> Key.new(2, \major),
+			\Ds -> Key.new(3, \major),
+			\Eb -> Key.new(3, \major),
+			\E -> Key.new(4, \major),
+			\Es -> Key.new(5, \major),
+			\Fb -> Key.new(4, \major),
+			\F -> Key.new(5, \major),
+			\Fs -> Key.new(6, \major),
+			\Gb -> Key.new(6, \major),
+			\G -> Key.new(7, \major),
+			\Gs -> Key.new(8, \major),
 
 			// minor keys
-			\Abm -> Key.new(\Ab, \minor),
-			\Am -> Key.new(\A, \minor),
-			\Asm -> Key.new(\As, \minor),
-			\Bbm -> Key.new(\Bb, \minor),
-			\Bm -> Key.new(\B, \minor),
-			\Bsm -> Key.new(\Bs, \minor),
-			\Cbm -> Key.new(\Cb, \minor),
-			\Cm -> Key.new(\C, \minor),
-			\Csm -> Key.new(\Cs, \minor),
-			\Dbm -> Key.new(\Db, \minor),
-			\Dm -> Key.new(\D, \minor),
-			\Dsm -> Key.new(\Ds, \minor),
-			\Ebm -> Key.new(\Eb, \minor),
-			\Em -> Key.new(\E, \minor),
-			\Esm -> Key.new(\Es, \minor),
-			\Fbm -> Key.new(\Fb, \minor),
-			\Fm -> Key.new(\F, \minor),
-			\Fsm -> Key.new(\Fs, \minor),
-			\Gbm -> Key.new(\Gb, \minor),
-			\Gm -> Key.new(\G, \minor),
-			\Gsm -> Key.new(\Gs, \minor),
+			\Abm -> Key.new(8, \minor),
+			\Am -> Key.new(9, \minor),
+			\Asm -> Key.new(10, \minor),
+			\Bbm -> Key.new(10, \minor),
+			\Bm -> Key.new(11, \minor),
+			\Bsm -> Key.new(0, \minor),
+			\Cbm -> Key.new(11, \minor),
+			\Cm -> Key.new(0, \minor),
+			\Csm -> Key.new(1, \minor),
+			\Dbm -> Key.new(1, \minor),
+			\Dm -> Key.new(2, \minor),
+			\Dsm -> Key.new(3, \minor),
+			\Ebm -> Key.new(3, \minor),
+			\Em -> Key.new(4, \minor),
+			\Esm -> Key.new(5, \minor),
+			\Fbm -> Key.new(4, \minor),
+			\Fm -> Key.new(5, \minor),
+			\Fsm -> Key.new(6, \minor),
+			\Gbm -> Key.new(6, \minor),
+			\Gm -> Key.new(7, \minor),
+			\Gsm -> Key.new(8, \minor),
 
 		];
 
@@ -112,4 +122,25 @@ Key {
 
 	}
 
+}
+
++ Integer {
+	toRomanNumeral {
+		var symbols = ["I", "II", "III", "IV", "V", "VI", "VII"];
+		^symbols[this];
+	}
+}
+
++ String {
+	formatQuality { |chord|
+		var intervals = [chord[1] - chord[0] + 12 % 12, chord[2] - chord[1] + 12 % 12];
+		var quality = switch(intervals,
+			[4, 3], this.toUpper,
+			[3, 4], this.toLower,
+			[3, 3], this.toLower ++ "°",
+			[4, 4], this.toUpper ++ "+",
+			this ++ "?",
+		);
+		^quality;
+	}
 }
