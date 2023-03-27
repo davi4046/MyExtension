@@ -1,15 +1,21 @@
 MyScore {
-	var data;
+	var data, <key;
 
-	*new {
-		^super.new.init;
+	*new { |key|
+		^super.new.init(key);
 	}
 
-	init {
+	init { |aKey|
 		data = [[], [], [], [], [], [], [], []];
+		key = aKey;
 	}
 
 	add { |voice, notes|
+
+		notes = notes.collect({
+			|note| (midinote: key.degreeToMidi(note[\degree]), dur: note[\dur])
+		});
+
 		if((voice < data.size),
 			{
 				data[voice] = (data[voice] ++ notes);
@@ -35,6 +41,10 @@ MyScore {
 	insert { |voice, beat, notes|
 		if((voice < data.size), {
 			var currBeat = 0;
+
+			notes = notes.collect({
+				|note| (midinote: key.degreeToMidi(note[\degree]), dur: note[\dur])
+			});
 
 			inf.do({ |i|
 				i = i.asInteger;
@@ -67,9 +77,12 @@ MyScore {
 
 	getIndexAtBeat { |voice, beat|
 		var noteBeat = 0;
+
 		data[voice].size.do({ |noteIdx|
+
 			var note = data[voice][noteIdx];
-			if((noteBeat <= beat) && (noteBeat + note[\dur] >= beat), {
+
+			if((noteBeat <= beat) && (noteBeat + note[\dur] > beat), {
 				^noteIdx;
 			});
 			noteBeat = noteBeat + note[\dur];
@@ -92,6 +105,11 @@ MyScore {
 	}
 
 	harmonize { |chords, harmonicRythm|
+		chords = chords.collect({ |numeral|
+			var chord = key.getChord(numeral);
+			numeral = numeral.asString.formatQuality(chord);
+			[numeral, chord];
+		}).flatten.asDict;
 
 		inf.do({ |i|
 			var fromBeat, toBeat, indexes, adjustments, ratings, chord;
@@ -141,8 +159,9 @@ MyScore {
 		});
 	}
 
-	combineRepeats { |acrossBars = true|
+	/*combineRepeats { |acrossBars = true|
 		var newData = data.size.collect({ List.new });
+
 		data.size.do({ |voiceIdx|
 			var prevNote;
 			data[voiceIdx].size.do({ |noteIdx|
@@ -192,44 +211,98 @@ MyScore {
 			});
 		});
 		data = newData;
-	}
+	}*/
 
-	getBarAt { |voiceIdx, noteIdx|
-		^floor(this.dursum(voiceIdx, 0, noteIdx - 1)).asInteger;
-	}
+	combineRepeats { |voice, acrossBars = true|
+		var newData = List.new;
 
-	makeRepeatsPauses { |maxInRow = inf|
-		data.size.do({ |voiceIdx|
-			var prevNote;
-			var inRow = 0;
-			data[voiceIdx].size.do({ |noteIdx|
-				var note = data[voiceIdx][noteIdx];
-				var isRepeat = false;
+		var prevNote;
+		data[voice].size.do({ |noteIdx|
+			var note = data[voice][noteIdx].copy;
+			var noteBar = this.getBar(voice, noteIdx);
 
-				if(prevNote != nil, {
-					if(note[\midinote] == prevNote[\midinote], {
+			var isRepeat = false;
+
+			if(prevNote != nil, {
+				if(note[\midinote] == prevNote[\midinote], {
+					var prevNoteBar = this.getBar(voice, noteIdx - 1);
+
+					if((noteBar == prevNoteBar) || (acrossBars == true), {
 						isRepeat = true;
 					});
 				});
+			});
 
-				if(isRepeat, {
-					if(inRow < maxInRow, {
-						data[voiceIdx][noteIdx][\midinote] = -1;
-						inRow = inRow + 1;
+			if(isRepeat.not, {
+				var bool = true;
+				var iter = 0;
+
+				while({bool}, {
+					iter = iter + 1;
+
+					if(noteIdx + iter <= data[voice].lastIndex, {
+						var followNote = data[voice][noteIdx + iter];
+
+						if(followNote[\midinote] == note[\midinote], {
+							var followNoteBar = this.getBar(voice, noteIdx + iter);
+
+							if((noteBar == followNoteBar) || (acrossBars == true), {
+								note[\dur] = note[\dur] + followNote[\dur];
+							}, {
+								bool = false;
+							});
+						}, {
+							bool = false;
+						});
 					}, {
-						inRow = 0;
+						bool = false;
 					});
+				});
+				newData.add(note);
+				prevNote = note;
+			});
+		});
+		data[voice] = newData;
+	}
+
+	makeRepeatsPauses { |voice, maxInRow = inf, acrossBars = true|
+		var prevNote;
+		var inRow = 0;
+		data[voice].size.do({ |noteIdx|
+			var note = data[voice][noteIdx];
+			var isRepeat = false;
+
+			if(prevNote != nil, {
+				if(note[\midinote] == prevNote[\midinote], {
+					var noteBar = this.getBar(voice, noteIdx);
+					var prevNoteBar = this.getBar(voice, noteIdx - 1);
+
+					if((noteBar == prevNoteBar) || acrossBars, {
+						isRepeat = true;
+					});
+				});
+			});
+
+			if(isRepeat, {
+				if(inRow < maxInRow, {
+					data[voice][noteIdx][\midinote] = -1;
+					inRow = inRow + 1;
 				}, {
-					prevNote = note;
 					inRow = 0;
 				});
-
+			}, {
+				prevNote = note;
+				inRow = 0;
 			});
 		});
 	}
 
-	addPassingNotes { |voice, key, durs, maxInRow = 1, offBeatOnly = true|
-		data[voice].size.do({ |i|
+	getBar { |voiceIdx, noteIdx|
+		^floor(this.dursum(voiceIdx, 0, noteIdx - 1)).asInteger;
+	}
+
+	/*addPTs { |voice, durs, maxInRow = 1, offBeatOnly = true|
+		(data[voice].size - 1).do({ |i|
 			var note = data[voice][i];
 			var nextNote = data[voice][i + 1];
 			var pitchesBetween = key.getPitchesBetween(note[\midinote], nextNote[\midinote]);
@@ -262,15 +335,62 @@ MyScore {
 				});
 			});
 		});
+	}*/
+
+	addPTs { |voice, durs, maxInRow = 1, offBeatOnly = true|
+		var newData = List.new;
+
+		(data[voice].size - 1).do({ |i|
+			var note = data[voice][i].copy;
+			var nextNote = data[voice][i + 1].copy;
+			var pitchesBetween = key.getPitchesBetween(note[\midinote], nextNote[\midinote]);
+
+			newData.add(note);
+
+			if((pitchesBetween.size > 0) && (pitchesBetween.size <= maxInRow), {
+				var noteBeat = if(offBeatOnly, { this.dursum(voice, 0, i - 1) }, 0 /*placeholder value*/ );
+				var hasAdded = false;
+				var iter = 0;
+
+				durs = durs.sort.reverse;
+
+				while({ hasAdded.not && (iter < durs.size) }, {
+					var dur = durs[iter];
+					var remainDur = note[\dur] - (pitchesBetween.size * dur);
+
+					if(remainDur > 0, {
+						var beats = pitchesBetween.size.collect({ |n| noteBeat + remainDur + (n * dur) });
+						var isOffBeatOnly = beats.mod(0.25).includes(0.0).not;
+
+						if(isOffBeatOnly || offBeatOnly.not, {
+							var passingNotes = pitchesBetween.collect({ |pitch| (midinote: pitch, dur: dur) });
+
+							note[\dur] = remainDur;
+							newData.add(passingNotes);
+
+							hasAdded = true;
+						});
+					});
+					iter = iter + 1;
+				});
+			});
+		});
+		data[voice] = newData.flatten;
 	}
 
-	addChromaticPassingNotes { |voice, durs, maxInRow = 1, offBeatOnly = true|
-		data[voice].size.do({ |i|
-			var note = data[voice][i];
-			var nextNote = data[voice][i + 1];
+	addCPTs { |voice, durs, maxInRow = 1, offBeatOnly = true|
+		var newData = List.new;
+
+		(data[voice].size - 1).do({ |i|
+			var note = data[voice][i].copy;
+			var nextNote = data[voice][i + 1].copy;
+
 			var min = min(note[\midinote], nextNote[\midinote]);
 			var max = max(note[\midinote], nextNote[\midinote]);
+
 			var steps = (max - min - 1).asInteger;
+
+			newData.add(note);
 
 			if((steps > 0) && (steps <= maxInRow), {
 				var noteBeat = if(offBeatOnly, { this.dursum(voice, 0, i - 1) }, 0 /*placeholder value*/ );
@@ -291,13 +411,59 @@ MyScore {
 							var passingNotes = steps.collect({ |n| (midinote: min + n + 1, dur: dur) });
 							if(note[\midinote] > nextNote[\midinote], { passingNotes = passingNotes.reverse });
 
-							data[voice][i][\dur] = remainDur;
-							data[voice] = data[voice].insert(i + 1, passingNotes).flatten;
+							note[\dur] = remainDur;
+							newData.add(passingNotes);
 
 							hasAdded = true;
 						});
 					});
 					iter = iter + 1;
+				});
+			});
+		});
+		data[voice] = newData.flatten;
+	}
+
+	makeHarmonicMinor {
+		data.size.do({ |voiceIdx|
+			(data[voiceIdx].size - 1).do({ |noteIdx|
+				var note = data[voiceIdx][noteIdx];
+				var noteDegree = key.midiToDegree(note[\midinote]);
+
+				if(noteDegree == 6, {
+					note[\midinote] = note[\midinote] + 1;
+				});
+			});
+		});
+	}
+
+	makeMelodicMinor {
+		data.size.do({ |voiceIdx|
+			(data[voiceIdx].size - 1).do({ |noteIdx|
+				var note = data[voiceIdx][noteIdx];
+				var noteDegree = key.midiToDegree(note[\midinote]);
+
+				if(noteDegree == 6, {
+					var nextNote = data[voiceIdx][noteIdx + 1];
+					var nextNoteDegree = key.midiToDegree(nextNote[\midinote]);
+
+					if(nextNoteDegree == 0, {
+						var beat = this.dursum(voiceIdx, 0, noteIdx - 1);
+
+						// Raise all leading-tones on this beat
+						data.size.do({ |voiceIdx|
+							var noteIdx = this.getIndexAtBeat(voiceIdx, beat);
+
+							if(noteIdx != nil, {
+								var note = data[voiceIdx][noteIdx];
+								var noteDegree = key.midiToDegree(note[\midinote]);
+
+								if(noteDegree == 6, {
+									note[\midinote] = note[\midinote] + 1;
+								});
+							});
+						});
+					});
 				});
 			});
 		});
@@ -324,26 +490,5 @@ MyScore {
 		});
 
 		mf.write;
-	}
-}
-
-+ Integer {
-	toRomanNumeral {
-		var symbols = ["I", "II", "III", "IV", "V", "VI", "VII"];
-		^symbols[this];
-	}
-}
-
-+ String {
-	formatQuality { |chord|
-		var intervals = [chord[1] - chord[0] + 12 % 12, chord[2] - chord[1] + 12 % 12];
-		var quality = switch(intervals,
-			[4, 3], this.toUpper,
-			[3, 4], this.toLower,
-			[3, 3], this.toLower ++ "°",
-			[4, 4], this.toUpper ++ "+",
-			this ++ "?",
-		);
-		^quality;
 	}
 }
